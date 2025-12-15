@@ -1,18 +1,18 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct Post {
     pub id: Uuid,
     pub title: String,
     pub content: String,
-    pub created_at: DateTime<Utc>
+    pub created_at: DateTime<Utc>,
 }
 
-
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct PostDto {
     pub title: String,
-    pub content: String
+    pub content: String,
 }

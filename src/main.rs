@@ -1,26 +1,26 @@
-use std::net::SocketAddr;
-use std::sync::Arc;
+use crate::application::post_service::PostService;
+use crate::infrastructure::post_repository::PostRepositoryImpl;
+use crate::interfaces::http::handlers::{
+    AppState, create_post, delete_post, get_post, health_check, list_posts, update_post,
+};
 use anyhow::Result;
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post, put};
 use dotenvy::dotenv;
 use sqlx::PgPool;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
-use tracing_subscriber::util::SubscriberInitExt;
-use crate::application::post_service::PostService;
-use crate::infrastructure::post_repository::PostRepositoryImpl;
-use crate::interfaces::http::handlers::{health_check, list_posts, AppState};
 
-mod domain;
 mod application;
+mod domain;
 mod infrastructure;
 mod interfaces;
 
-
 #[tokio::main]
-async fn main() -> Result<()>{
+async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_target(false)
@@ -42,7 +42,11 @@ async fn main() -> Result<()>{
 
     let app = Router::new()
         .route("/", get(health_check))
+        .route("/posts", post(create_post))
         .route("/posts", get(list_posts))
+        .route("/posts/:id", get(get_post))
+        .route("/posts/:id", put(update_post))
+        .route("/posts/:id", delete(delete_post))
         .with_state(app_state)
         .layer(
             CorsLayer::new()
