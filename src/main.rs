@@ -1,4 +1,5 @@
 use crate::application::post_service::PostService;
+use crate::infrastructure::cached_post_repository::CachedPostRepository;
 use crate::infrastructure::post_repository::PostRepositoryImpl;
 use crate::interfaces::http::handlers::{
     AppState, create_post, delete_post, get_post, health_check, list_posts, update_post,
@@ -7,6 +8,7 @@ use anyhow::Result;
 use axum::Router;
 use axum::routing::{delete, get, post, put};
 use dotenvy::dotenv;
+use redis::Client;
 use sqlx::PgPool;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -34,9 +36,15 @@ async fn main() -> Result<()> {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPool::connect(&database_url).await?;
 
-    let post_repository = Arc::new(PostRepositoryImpl::new(pool));
+    // Redis connection
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
+    let redis_client = Client::open(redis_url)?;
+    let redis_conn = redis_client.get_multiplexed_async_connection().await?;
 
-    let post_service = Arc::new(PostService::new(post_repository));
+    let post_repository = Arc::new(PostRepositoryImpl::new(pool));
+    let cached_post_repository = Arc::new(CachedPostRepository::new(post_repository, redis_conn));
+
+    let post_service = Arc::new(PostService::new(cached_post_repository));
 
     let app_state = AppState { post_service };
 
