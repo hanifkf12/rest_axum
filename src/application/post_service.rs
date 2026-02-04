@@ -1,19 +1,28 @@
 use crate::domain::{
     error::PostError,
-    post::{Post, PostDto},
+    ports::PostRepository,
+    post::Post,
 };
-use async_trait::async_trait;
+use serde::Deserialize;
 use std::sync::Arc;
+use uuid::Uuid;
 
-#[async_trait]
-pub trait PostRepository: Send + Sync {
-    async fn get_all(&self) -> Result<Vec<Post>, PostError>;
-    async fn get_by_id(&self, id: &uuid::Uuid) -> Result<Post, PostError>;
-    async fn create(&self, post: PostDto) -> Result<Post, PostError>;
-    async fn update(&self, id: uuid::Uuid, post: PostDto) -> Result<Post, PostError>;
-    async fn delete(&self, id: uuid::Uuid) -> Result<(), PostError>;
+/// Application-level DTO for creating/updating posts.
+/// This is separate from domain entities to allow flexibility.
+#[derive(Debug, Deserialize, Clone)]
+pub struct CreatePostDto {
+    pub title: String,
+    pub content: String,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct UpdatePostDto {
+    pub title: String,
+    pub content: String,
+}
+
+/// Application service implementing use cases.
+/// Orchestrates domain logic and coordinates repositories.
 pub struct PostService {
     repo: Arc<dyn PostRepository>,
 }
@@ -27,19 +36,27 @@ impl PostService {
         self.repo.get_all().await
     }
 
-    pub async fn get_by_id(&self, id: &uuid::Uuid) -> Result<Post, PostError> {
+    pub async fn get_by_id(&self, id: &Uuid) -> Result<Post, PostError> {
         self.repo.get_by_id(id).await
     }
 
-    pub async fn create(&self, post: PostDto) -> Result<Post, PostError> {
-        self.repo.create(post).await
+    pub async fn create(&self, dto: CreatePostDto) -> Result<Post, PostError> {
+        // Business validation can be added here
+        if dto.title.is_empty() {
+            return Err(PostError::InvalidInput("Title cannot be empty".to_string()));
+        }
+        self.repo.create(dto.title, dto.content).await
     }
 
-    pub async fn update(&self, id: uuid::Uuid, post: PostDto) -> Result<Post, PostError> {
-        self.repo.update(id, post).await
+    pub async fn update(&self, id: Uuid, dto: UpdatePostDto) -> Result<Post, PostError> {
+        // Business validation can be added here
+        if dto.title.is_empty() {
+            return Err(PostError::InvalidInput("Title cannot be empty".to_string()));
+        }
+        self.repo.update(id, dto.title, dto.content).await
     }
 
-    pub async fn delete(&self, id: uuid::Uuid) -> Result<(), PostError> {
+    pub async fn delete(&self, id: Uuid) -> Result<(), PostError> {
         self.repo.delete(id).await
     }
 }

@@ -1,35 +1,27 @@
-use sqlx::Error as SqlxError;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
+/// Domain errors representing business rule violations and system failures.
 #[derive(Debug)]
 pub enum PostError {
     NotFound,
-    Database(SqlxError),
+    InvalidInput(String),
+    Database(String),
+    Cache(String),
 }
 
 impl Display for PostError {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             PostError::NotFound => write!(f, "post not found"),
-            PostError::Database(err) => write!(f, "database error: {err}"),
+            PostError::InvalidInput(msg) => write!(f, "invalid input: {msg}"),
+            PostError::Database(msg) => write!(f, "database error: {msg}"),
+            PostError::Cache(msg) => write!(f, "cache error: {msg}"),
         }
     }
 }
 
 impl std::error::Error for PostError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            PostError::Database(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-impl From<SqlxError> for PostError {
-    fn from(err: SqlxError) -> Self {
-        match err {
-            SqlxError::RowNotFound => PostError::NotFound,
-            other => PostError::Database(other),
-        }
+        None
     }
 }

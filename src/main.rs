@@ -1,5 +1,6 @@
 use crate::application::post_service::PostService;
 use crate::infrastructure::cached_post_repository::CachedPostRepository;
+use crate::infrastructure::config::Config;
 use crate::infrastructure::post_repository::PostRepositoryImpl;
 use crate::interfaces::http::handlers::{
     AppState, create_post, delete_post, get_post, health_check, list_posts, update_post,
@@ -7,7 +8,6 @@ use crate::interfaces::http::handlers::{
 use anyhow::Result;
 use axum::Router;
 use axum::routing::{delete, get, post, put};
-use dotenvy::dotenv;
 use redis::Client;
 use sqlx::PgPool;
 use std::net::SocketAddr;
@@ -29,18 +29,20 @@ async fn main() -> Result<()> {
         .compact()
         .init();
 
-    // Load .env file
-    dotenv().ok();
+    // Load configuration
+    let config = Config::from_env()?;
+    info!("Configuration loaded successfully");
 
     // Database connection
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = PgPool::connect(&database_url).await?;
+    let pool = PgPool::connect(&config.database_url).await?;
+    info!("Database connected successfully");
 
     // Redis connection
-    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
-    let redis_client = Client::open(redis_url)?;
+    let redis_client = Client::open(config.redis_url)?;
     let redis_conn = redis_client.get_multiplexed_async_connection().await?;
+    info!("Redis connected successfully");
 
+    // Dependency injection - Clean Architecture: Infrastructure depends on Domain
     let post_repository = Arc::new(PostRepositoryImpl::new(pool));
     let cached_post_repository = Arc::new(CachedPostRepository::new(post_repository, redis_conn));
 
@@ -64,7 +66,7 @@ async fn main() -> Result<()> {
         )
         .layer(TraceLayer::new_for_http());
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], config.server_port));
     info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

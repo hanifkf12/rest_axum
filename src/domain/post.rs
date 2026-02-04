@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+/// Domain entity representing a blog post.
+/// This is a pure domain object with no external dependencies.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Post {
     pub id: Uuid,
     pub title: String,
@@ -11,8 +12,13 @@ pub struct Post {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct PostDto {
-    pub title: String,
-    pub content: String,
+impl Post {
+    pub fn new(id: Uuid, title: String, content: String, created_at: DateTime<Utc>) -> Self {
+        Self {
+            id,
+            title,
+            content,
+            created_at,
+        }
+    }
 }
